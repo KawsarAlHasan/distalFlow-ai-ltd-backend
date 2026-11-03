@@ -2,104 +2,169 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
-import { createNurtureSequenceService } from "./nurture.service";
+import ApiError from "../../../errors/ApiError";
+import {
+  createNurtureSequenceService,
+  getNurtureSequencesService,
+  getNurtureSequenceByIdService,
+  updateNurtureSequenceService,
+  deleteNurtureSequenceService,
+  addNurtureStepService,
+  updateNurtureStepService,
+  deleteNurtureStepService,
+} from "./nurture.service";
 
-// create nurture sequence
+// Helper to extract clinicId from authenticated request
+const getClinicId = (req: Request): string => {
+  const clinicAdmin = (req as any).decodedClinicAdmin;
+  if (!clinicAdmin) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, "Clinic admin is not authenticated");
+  }
+  return clinicAdmin.clinicId || clinicAdmin.id;
+};
+
+// -----------------------------------------------------------------------------
+// Sequence Controllers
+// -----------------------------------------------------------------------------
+
+// 1. Create nurture sequence
 export const createNurtureSequence = catchAsync(
   async (req: Request, res: Response) => {
-    const clinicAdmin = (req as any).decodedClinicAdmin;
+    const clinicId = getClinicId(req);
 
     const payload = {
       ...req.body,
-      clinicId: clinicAdmin.id,
+      clinicId,
     };
 
     const result = await createNurtureSequenceService(payload);
 
     sendResponse(res, {
       success: true,
-      statusCode: StatusCodes.OK,
+      statusCode: StatusCodes.CREATED,
       message: "Nurture sequence created successfully",
       data: result,
     });
   },
 );
 
-// // Update an existing user
-// export const userStatusChange = catchAsync(
-//   async (req: Request, res: Response) => {
-//     const { ...userData } = req.body;
+// 2. Get all nurture sequences for clinic
+export const getAllNurtureSequences = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = getClinicId(req);
 
-//     const result = await userStatusChangeService(userData);
+    const result = await getNurtureSequencesService(clinicId);
 
-//     sendResponse(res, {
-//       success: true,
-//       statusCode: StatusCodes.OK,
-//       message: "User status updated successfully",
-//       data: result,
-//     });
-//   },
-// );
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Nurture sequences retrieved successfully",
+      data: result,
+    });
+  },
+);
 
-// // Update user own data
-// export const updateUserOwnData = catchAsync(
-//   async (req: Request, res: Response) => {
-//     const user = (req as any).decodedUser;
+// 3. Get single nurture sequence by ID
+export const getNurtureSequenceById = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = getClinicId(req);
+    const id = req.params.id as string;
 
-//     const payload = {
-//       existUser: user,
-//       ...req.body,
-//     };
+    const result = await getNurtureSequenceByIdService(id, clinicId);
 
-//     const result = await updateUserDataService(payload);
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Nurture sequence retrieved successfully",
+      data: result,
+    });
+  },
+);
 
-//     sendResponse(res, {
-//       success: true,
-//       statusCode: StatusCodes.OK,
-//       message: "User updated successfully",
-//       data: result,
-//     });
-//   },
-// );
+// 4. Update nurture sequence
+export const updateNurtureSequence = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = getClinicId(req);
+    const id = req.params.id as string;
 
-// // Update user image
-// export const updateUserImage = catchAsync(
-//   async (req: Request, res: Response) => {
-//     const user = (req as any).decodedUser;
+    const result = await updateNurtureSequenceService(id, clinicId, req.body);
 
-//     let image;
-//     if (req.files && "image" in req.files && req.files.image[0]) {
-//       // Build base URL for uploaded file access
-//       const baseUrl = `${req.protocol}://${req.get("host")}`;
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Nurture sequence updated successfully",
+      data: result,
+    });
+  },
+);
 
-//       image = `${baseUrl}/images/${req.files.image[0].filename}`;
-//     }
+// 5. Delete nurture sequence
+export const deleteNurtureSequence = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = getClinicId(req);
+    const id = req.params.id as string;
 
-//     const payload = {
-//       existUser: user,
-//       profile: image,
-//     };
+    const result = await deleteNurtureSequenceService(id, clinicId);
 
-//     const result = await updateUserImageService(payload);
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Nurture sequence deleted successfully",
+      data: result,
+    });
+  },
+);
 
-//     sendResponse(res, {
-//       success: true,
-//       statusCode: StatusCodes.OK,
-//       message: "User image updated successfully",
-//       data: result,
-//     });
-//   },
-// );
+// -----------------------------------------------------------------------------
+// Step Controllers
+// -----------------------------------------------------------------------------
 
-// // Delete an existing User
-// export const deleteUser = catchAsync(async (req: Request, res: Response) => {
-//   const userId = req.params.id;
+// 6. Add step to sequence
+export const addNurtureStep = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = getClinicId(req);
 
-//   await deleteUserService(userId);
+    const result = await addNurtureStepService(clinicId, req.body);
 
-//   sendResponse(res, {
-//     success: true,
-//     statusCode: StatusCodes.OK,
-//     message: "User deleted successfully",
-//   });
-// });
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.CREATED,
+      message: "Nurture step added successfully",
+      data: result,
+    });
+  },
+);
+
+// 7. Update nurture step
+export const updateNurtureStep = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = getClinicId(req);
+    const id = req.params.id as string;
+
+    const result = await updateNurtureStepService(id, clinicId, req.body);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Nurture step updated successfully",
+      data: result,
+    });
+  },
+);
+
+// 8. Delete nurture step
+export const deleteNurtureStep = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = getClinicId(req);
+    const id = req.params.id as string;
+
+    const result = await deleteNurtureStepService(id, clinicId);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Nurture step deleted successfully",
+      data: result,
+    });
+  },
+);
