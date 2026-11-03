@@ -1,0 +1,88 @@
+services:
+  # ==========================================
+  # DistalFlo AI Backend API Service
+  # ==========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: distal_flo_backend
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-7811}:${APP_PORT:-7811}"
+    env_file:
+      - .env
+    environment:
+      - PORT=${APP_PORT:-7811}
+      - APP_PORT=${APP_PORT:-7811}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-distal_flo_user}:${POSTGRES_PASSWORD:-distal_flo_pass}@postgres:5432/${POSTGRES_DB:-distal_flo}?schema=public
+    volumes:
+      - ./uploads:/app/uploads
+      - ./winston/logs:/app/winston/logs
+      # Uncomment for live code reload in development:
+      # - ./src:/app/src
+    # command: npm run dev # Uncomment for dev hot-reload
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - distal_flo_network
+
+  # ==========================================
+  # Redis Service
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: distal_flo_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-7813}:6379"
+    volumes:
+      - distal_flo_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - distal_flo_network
+
+  # ==========================================
+  # PostgreSQL Database Service
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: distal_flo_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-distal_flo_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-distal_flo_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-distal_flo}
+    ports:
+      - "${POSTGRES_PORT:-7812}:5432"
+    volumes:
+      - distal_flo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER:-distal_flo_user} -d $${POSTGRES_DB:-distal_flo}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - distal_flo_network
+
+volumes:
+  distal_flo_redis_data:
+  distal_flo_pgdata:
+
+networks:
+  distal_flo_network:
+    driver: bridge

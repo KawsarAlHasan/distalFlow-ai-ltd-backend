@@ -1,0 +1,47 @@
+// ------------------------------
+// Enums
+// ------------------------------
+enum ChannelEnum {
+  sms
+  email
+  wa
+}
+
+enum TimeUnitEnum {
+  days
+  hours
+}
+
+// ------------------------------
+// New nurture models
+// ------------------------------
+model NurtureSequence {
+  id         String        @id @default(cuid())
+  name       String
+  active     Boolean       @default(true)
+  clinicId   String
+  clinic     Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  campaignId String? // optional link to a campaign
+  campaign   Campaign?     @relation(fields: [campaignId], references: [id])
+  steps      NurtureStep[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@map("nurture_sequences")
+}
+
+model NurtureStep {
+  id         String          @id @default(cuid())
+  sequenceId String
+  sequence   NurtureSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  channel    ChannelEnum
+  wait       Int // number of units (e.g., 2)
+  unit       TimeUnitEnum // days or hours
+  message    String          @db.Text
+  badge      String? // optional, e.g., "Growth+"
+  order      Int // position in the sequence (0‑based)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@map("nurture_steps")
+}

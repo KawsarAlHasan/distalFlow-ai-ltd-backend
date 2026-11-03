@@ -1,0 +1,191 @@
+// Prisma:
+
+enum PlanType {
+  SOLO
+  GROWTH
+  PRO
+  ENTERPRISE
+}
+
+enum PriceStatus {
+  ACTIVE
+  LEGACY
+  GRANDFATHERED
+}
+
+enum MigrationMode {
+  MIGRATE
+  GRANDFATHER
+}
+
+enum AuditAction {
+  PRICE_CREATED
+  PRICE_UPDATED
+  SUBSCRIBERS_MIGRATED
+  PRICE_GRANDFATHERED
+  OVERRIDE_APPLIED
+  OVERRIDE_REMOVED
+}
+
+model Plan {
+  id   String   @id @default(cuid())
+  type PlanType @unique
+  name String
+
+  // UI / presentation
+  accent String
+
+  // Campaign limits
+  campaigns           String
+  campaignLimit       Int?
+  isUnlimitedCampaign Boolean @default(false)
+
+  // Location limits
+  locations           String
+  locationLimit       Int?
+  isUnlimitedLocation Boolean @default(false)
+
+  // Whether this plan can be purchased without admin assistance
+  selfServe Boolean @default(true)
+
+  // Enterprise pricing
+  // Price per additional location after the included locations.
+  additionalSiteAmount Int?
+  additionalSiteSetup  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  prices          PlanPrice[]
+  clinicOverrides ClinicOverride[]
+  auditEntries    PlanAuditLog[]
+
+  @@map("plans")
+}
+
+model PlanPrice {
+  id String @id @default(cuid())
+
+  // Stripe Price ID.
+  // Can be replaced with a nullable field if Stripe is not integrated yet.
+  stripePriceId String @unique
+
+  plan   Plan   @relation(fields: [planId], references: [id])
+  planId String
+
+  // All amounts are stored in minor currency units.
+  // Example: £897.00 = 89700
+  amount   Int
+  setupFee Int @default(0)
+
+  status PriceStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  subscriptions ClinicSubscription[]
+
+  // migrationsFrom Migration[] @relation("MigrationFromPrice")
+  // migrationsTo   Migration[] @relation("MigrationToPrice")
+
+  @@index([planId])
+  @@index([planId, status])
+  @@map("prices")
+}
+
+model ClinicOverride {
+  id String @id @default(cuid())
+
+  clinic   Clinic @relation(fields: [clinicId], references: [id])
+  clinicId String
+
+  plan   Plan   @relation(fields: [planId], references: [id])
+  planId String
+
+  // Standard price at the time the override was created.
+  // Stored as a snapshot so historical pricing remains accurate.
+  standardPrice Int
+
+  // Custom price for this clinic.
+  overridePrice Int
+
+  reason String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Admin user who created/updated the override.
+  // Keep as String until a User model is introduced.
+  createdById String?
+
+  @@index([clinicId])
+  @@index([planId])
+  @@map("clinic_overrides")
+}
+
+// model Migration {
+//   id String @id @default(cuid())
+
+//   mode MigrationMode
+
+//   // Previous price
+//   fromPrice   Price  @relation("MigrationFromPrice", fields: [fromPriceId], references: [id])
+//   fromPriceId String
+
+//   // New price.
+//   // NULL when the migration mode is GRANDFATHER.
+//   toPrice   Price?  @relation("MigrationToPrice", fields: [toPriceId], references: [id])
+//   toPriceId String?
+
+//   // Number of subscribers affected by this migration.
+//   subscribersAffected Int
+
+//   performedAt DateTime @default(now())
+
+//   // Admin user who performed the migration.
+//   performedById String?
+
+//   @@index([fromPriceId])
+//   @@index([toPriceId])
+//   @@index([performedAt])
+
+//   @@map("migrations")
+// }
+
+model PlanAuditLog {
+  id String @id @default(cuid())
+
+  // Admin display name/email.
+  // Replace with User relation later if required.
+  admin String
+
+  action AuditAction
+
+  plan   Plan   @relation(fields: [planId], references: [id])
+  planId String
+
+  // Human-readable snapshots.
+  // Example:
+  // previous = "£897/mo"
+  // next     = "£997/mo"
+  previous String
+  next     String
+
+  // What was affected.
+  // Examples:
+  // "New sign-ups only"
+  // "12 subscribers"
+  // "ABC Clinic"
+  affected String
+
+  // Optional structured information.
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([planId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_log_entries")
+}

@@ -1,0 +1,117 @@
+enum ClinicStatus {
+    ACTIVE
+    PENDING
+    INACTIVE
+    SUSPENDED
+    DELETED
+}
+
+enum ClinicAdminStatus {
+    ACTIVE
+    PENDING
+    INACTIVE
+    SUSPENDED
+    DELETED
+}
+
+model Clinic {
+    id             String  @id @default(cuid())
+    name           String?
+    tradingCompany String?
+    city           String?
+
+    // google ads credentials 
+    googleId           String?
+    googleEmail        String?
+    refreshToken       String?
+    selectedCustomerId String?
+
+    status    ClinicStatus @default(PENDING)
+    createdAt DateTime     @default(now())
+    updatedAt DateTime     @updatedAt
+
+    admin        ClinicAdmin?
+    postcodes    ClinicPostcode[]
+    location     ClinicLocation?
+    subscription ClinicSubscription?
+    overrides    ClinicOverride[]
+
+    // New relations for nurture
+    nurtureSequences NurtureSequence[]
+    campaigns        Campaign[]
+}
+
+model ClinicAdmin {
+    id             String  @id @default(cuid())
+    name           String?
+    email          String  @unique
+    password       String
+    onTimePassword Boolean @default(false)
+    clinicId       String  @unique
+    clinic         Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+    isMainAdmin Boolean @default(false)
+    isVerified  Boolean @default(false)
+
+    status ClinicAdminStatus @default(PENDING)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model ClinicPostcode {
+    id          String   @id @default(cuid())
+    code        String
+    unavailable Boolean  @default(false)
+    override    Boolean  @default(false)
+    clinicId    String
+    clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([clinicId, code])
+}
+
+model ClinicLocation {
+    id        String   @id @default(cuid())
+    lat       String?
+    lng       String?
+    clinicId  String   @unique
+    clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model ClinicSubscription {
+    id          String     @id @default(cuid())
+    plan        String // Solo, Growth, Pro, Enterprise
+    locations   Int        @default(1)
+    discount    String     @default("none")
+    promoCode   String?
+    monthlyFee  Float?
+    setupFee    Float?
+    status      String     @default("pending") // pending, active, cancelled, expired
+    clinicId    String     @unique
+    clinic      Clinic     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+    createdAt   DateTime   @default(now())
+    updatedAt   DateTime   @updatedAt
+    planPrice   PlanPrice? @relation(fields: [planPriceId], references: [id])
+    planPriceId String?
+}
+
+// model ClinicSubscription {
+//   id String @id @default(cuid())
+
+//   clinic   Clinic @relation(fields: [clinicId], references: [id])
+//   clinicId String
+
+//   price   PlanPrice @relation(fields: [priceId], references: [id])
+//   priceId String
+
+//   startedAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   @@index([clinicId])
+//   @@index([priceId])
+//   @@map("clinic_subscriptions")
+// }

@@ -1,0 +1,18 @@
+-- AlterTable
+ALTER TABLE "campaigns" ADD COLUMN     "aiGreeting" TEXT NOT NULL DEFAULT 'Hi, this is Bright Smile Dental calling about your dental implant enquiry. Is now a good time for a quick chat?',
+ADD COLUMN     "bodyCopy" TEXT NOT NULL DEFAULT 'Permanent, natural-looking dental implants placed by our award-winning Oxford team. Book your free consultation.',
+ADD COLUMN     "consent" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "cta" TEXT NOT NULL DEFAULT 'Request my free consultation',
+ADD COLUMN     "doctorDescription" TEXT,
+ADD COLUMN     "doctorImageUrl" TEXT,
+ADD COLUMN     "doctorName" TEXT,
+ADD COLUMN     "doctorQualification" TEXT,
+ADD COLUMN     "generatedVideoUrl" TEXT,
+ADD COLUMN     "headline" TEXT NOT NULL DEFAULT 'A brighter smile in one visit',
+ADD COLUMN     "patientCount" INTEGER NOT NULL DEFAULT 340,
+ADD COLUMN     "rating" DOUBLE PRECISION NOT NULL DEFAULT 4.9,
+ADD COLUMN     "sourceVideoName" TEXT,
+ADD COLUMN     "sourceVideoSize" INTEGER,
+ADD COLUMN     "sourceVideoUrl" TEXT,
+ADD COLUMN     "videoApproved" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "videoScript" TEXT;

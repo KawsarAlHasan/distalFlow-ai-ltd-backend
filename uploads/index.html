@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="./title-logo.png" />
+    <title>DistalFlo App Server</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400&display=swap"
+    />
+    <style>
+      :root {
+        --primary: #00ff9d;
+        --secondary: #00b8ff;
+        --dark: #0a192f;
+        --darker: #020c1b;
+        --light: #ccd6f6;
+        --neon-glow: 0 0 10px rgba(0, 255, 157, 0.8);
+      }
+
+      * {
+        /* background-image: url('./files/logo.png'); */
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: var(--dark);
+        color: var(--light);
+        font-family: "Roboto", sans-serif;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        background-image:
+          radial-gradient(
+            circle at 25% 25%,
+            rgba(0, 255, 157, 0.1) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 75% 75%,
+            rgba(0, 184, 255, 0.1) 0%,
+            transparent 50%
+          );
+      }
+
+      .matrix-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        opacity: 0.15;
+        pointer-events: none;
+      }
+
+      header {
+        padding: 2rem;
+        text-align: center;
+        position: relative;
+      }
+
+      h1 {
+        font-family: "Orbitron", sans-serif;
+        font-size: clamp(2rem, 5vw, 4rem);
+        color: var(--primary);
+        text-shadow: var(--neon-glow);
+        margin-bottom: 0.5rem;
+        letter-spacing: 2px;
+        animation: flicker 3s infinite alternate;
+      }
+
+      h2 {
+        font-family: "Orbitron", sans-serif;
+        font-size: clamp(1rem, 2.5vw, 1.5rem);
+        color: var(--secondary);
+        /* margin-bottom: 2rem; */
+        font-weight: 400;
+      }
+
+      .main-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        /* padding: 1rem; */
+      }
+
+      .status-card {
+        background: linear-gradient(
+          145deg,
+          rgba(10, 25, 47, 0.8),
+          rgba(2, 12, 27, 0.9)
+        );
+        border: 1px solid rgba(0, 255, 157, 0.3);
+        border-radius: 16px;
+        padding: 2rem;
+        width: 100%;
+        max-width: 800px;
+        box-shadow: 0 0 30px rgba(0, 255, 157, 0.1);
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+        /* margin-bottom: 2rem; */
+      }
+
+      .status-card::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, var(--primary), var(--secondary));
+        z-index: -1;
+        border-radius: 16px;
+        animation: rotate 6s linear infinite;
+      }
+
+      .status-card::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          145deg,
+          rgba(10, 25, 47, 0.8),
+          rgba(2, 12, 27, 0.9)
+        );
+        border-radius: 15px;
+        z-index: -1;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.8rem 1.5rem;
+        background-color: rgba(0, 255, 157, 0.1);
+        color: var(--primary);
+        border-radius: 50px;
+        font-family: "Orbitron", sans-serif;
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--primary);
+        box-shadow: var(--neon-glow);
+      }
+
+      .status::before {
+        content: "";
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: var(--primary);
+        margin-right: 10px;
+        box-shadow: 0 0 10px var(--primary);
+        animation: pulse 1.5s infinite;
+      }
+
+      .server-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        width: 100%;
+      }
+
+      .info-box {
+        background: rgba(0, 184, 255, 0.05);
+        border: 1px solid rgba(0, 184, 255, 0.2);
+        border-radius: 10px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+      }
+
+      .info-box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 184, 255, 0.2);
+      }
+
+      .info-box h3 {
+        color: var(--secondary);
+        font-family: "Orbitron", sans-serif;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .info-box p {
+        font-size: 1.1rem;
+        color: var(--light);
+      }
+
+      .logo {
+        width: 240px;
+        height: 240px;
+        margin-bottom: 15px;
+        margin-top: -15px;
+      }
+
+      footer {
+        text-align: center;
+        padding: 2rem;
+        font-size: 0.9rem;
+        color: rgba(204, 214, 246, 0.6);
+      }
+
+      footer b {
+        color: var(--primary);
+        font-family: "Orbitron", sans-serif;
+      }
+
+      /* Animations */
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes flicker {
+        0%,
+        19%,
+        21%,
+        23%,
+        25%,
+        54%,
+        56%,
+        100% {
+          text-shadow:
+            0 0 10px var(--primary),
+            0 0 20px var(--primary),
+            0 0 30px var(--primary);
+        }
+        20%,
+        24%,
+        55% {
+          text-shadow: none;
+        }
+      }
+
+      @keyframes rotate {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .server-info {
+          grid-template-columns: 1fr;
+        }
+
+        .status-card {
+          padding: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="matrix-bg" id="matrixCanvas"></div>
+
+    <header>
+      <h1>DistalFlo App Server</h1>
+      <h2>SYSTEM STATUS MONITOR :: ONLINE</h2>
+    </header>
+
+    <div class="main-container">
+      <img src="./logo.png" alt="Logo" class="logo" />
+      <div class="status-card">
+        <div class="status">SERVER STATUS: OPERATIONAL</div>
+
+        <div class="server-info">
+          <div class="info-box">
+            <h3>SYSTEM TIME</h3>
+            <p id="current-time">SYNCING...</p>
+          </div>
+
+          <div class="info-box">
+            <h3>UPTIME</h3>
+            <p id="uptime">00:00:00:00</p>
+          </div>
+
+          <div class="info-box">
+            <h3>VERSION</h3>
+            <p>v1.0.0</p>
+          </div>
+
+          <div class="info-box">
+            <h3>CONNECTIONS</h3>
+            <p id="connections">1,247</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      POWERED BY <b>Neural Nexas AI</b> | &copy;
+      <span id="current-year"></span> ALL SYSTEMS NOMINAL
+    </footer>
+
+    <script>
+      // Update current time
+      function updateTime() {
+        const options = {
+          timeZone: "Asia/Dhaka",
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        };
+        const date = new Date().toLocaleString("en-US", options);
+        document.getElementById("current-time").textContent = date;
+      }
+
+      // Update copyright year
+      document.getElementById("current-year").textContent =
+        new Date().getFullYear();
+
+      // Simulate uptime counter
+      function updateUptime() {
+        let seconds = 0;
+        setInterval(() => {
+          seconds++;
+          const days = Math.floor(seconds / 86400);
+          const hours = Math.floor((seconds % 86400) / 3600);
+          const mins = Math.floor((seconds % 3600) / 60);
+          const secs = seconds % 60;
+          document.getElementById("uptime").textContent = `${days
+            .toString()
+            .padStart(2, "0")}:${hours.toString().padStart(2, "0")}:${mins
+            .toString()
+            .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+        }, 1000);
+      }
+
+      // Simulate connection count
+      function updateConnections() {
+        let base = 1247;
+        setInterval(() => {
+          const change = Math.floor(Math.random() * 5) - 2;
+          base = Math.max(1200, base + change);
+          document.getElementById("connections").textContent =
+            base.toLocaleString();
+        }, 3000);
+      }
+
+      // Matrix background effect
+      function initMatrix() {
+        const canvas = document.createElement("canvas");
+        canvas.id = "matrixCanvas";
+        document.querySelector(".matrix-bg").appendChild(canvas);
+
+        const ctx = canvas.getContext("2d");
+
+        // Set canvas to full window size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const katakana =
+          "アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュル";
+        const bangla = "অআইঈউঊঋএঐওঔকখগঘঙচছজঝঞটঠডঢণতথদধনপফবভমযরলশষসহড়ঢ়য়ৎ";
+        const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const nums = "0123456789";
+        const symbols = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+        const alphabet = bangla + katakana + latin + nums;
+        // const alphabet = bangla;
+
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const rainDrops = [];
+
+        for (let x = 0; x < columns; x++) {
+          rainDrops[x] = 1;
+        }
+
+        const draw = () => {
+          ctx.fillStyle = "rgba(10, 25, 47, 0.05)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.fillStyle = "#00ff9d";
+          ctx.font = fontSize + "px monospace";
+
+          for (let i = 0; i < rainDrops.length; i++) {
+            const text = alphabet.charAt(
+              Math.floor(Math.random() * alphabet.length),
+            );
+            ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+
+            if (
+              rainDrops[i] * fontSize > canvas.height &&
+              Math.random() > 0.975
+            ) {
+              rainDrops[i] = 0;
+            }
+            rainDrops[i]++;
+          }
+        };
+
+        setInterval(draw, 30);
+
+        window.addEventListener("resize", () => {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+        });
+      }
+
+      // Initialize everything
+      window.onload = function () {
+        updateTime();
+        setInterval(updateTime, 1000);
+        updateUptime();
+        updateConnections();
+        initMatrix();
+      };
+    </script>
+  </body>
+</html>

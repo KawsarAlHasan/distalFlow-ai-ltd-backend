@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Client" ADD COLUMN     "rigId" INTEGER,
+ALTER COLUMN "companyId" DROP NOT NULL;
+
+-- AddForeignKey
+ALTER TABLE "Client" ADD CONSTRAINT "Client_rigId_fkey" FOREIGN KEY ("rigId") REFERENCES "Rig"("id") ON DELETE SET NULL ON UPDATE CASCADE;

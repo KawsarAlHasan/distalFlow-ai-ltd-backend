@@ -1,0 +1,12 @@
+model Admin {
+    id         String    @id @default(cuid())
+    email      String    @unique
+    name       String?
+    phone      String?
+    profilePic String?
+    password   String
+    status     AllStatus @default(ACTIVE)
+    roleName   String?
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
+}

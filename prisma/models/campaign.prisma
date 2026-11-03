@@ -1,0 +1,187 @@
+model Campaign {
+    id String @id @default(cuid())
+
+    // -------------------------------------------------------------------------
+    // Top Navbar / Header Info (Backend Controllable)
+    // -------------------------------------------------------------------------
+    navPhone    String?
+    navWhatsapp String?
+    navCtaText  String  @default("Book Free Consultation")
+
+    // -------------------------------------------------------------------------
+    // 1. HERO SECTION (REQUIRED)
+    // -------------------------------------------------------------------------
+    name         String // Treatment / campaign name, e.g. "Dental Implants"
+    heroBadge    String  @default("DENTAL IMPLANTS")
+    headline     String  @default("A brighter smile in one visit")
+    subheadline  String? @default("done properly.")
+    bodyCopy     String  @default("Permanent, natural-looking dental implants placed by our award-winning Oxford team. Book your free consultation.") @db.Text
+    rating       Float   @default(4.9)
+    patientCount Int     @default(340)
+    cta          String  @default("Claim my free consultation")
+    whatsappCta  String  @default("WhatsApp Us")
+
+    // Bullet points / highlights shown with sparkles
+    heroHighlights String[] @default(["Free consultation, no obligation", "Medically-trained practitioners", "No surgery, no downtime", "Results in days"])
+
+    // Hero Consultation Form Card (REQUIRED)
+    formBadge           String   @default("FREE CONSULTATION")
+    formTitle           String   @default("Book Your Free Consultation")
+    formSubtitle        String   @default("No charge. No obligation. Tell us what you'd like to achieve and we'll guide you through your options.") @db.Text
+    formButtonText      String   @default("Claim my free consultation")
+    formCallbackText    String   @default("We'll call you within 5 minutes — Mon to Sat, 8am–8pm.")
+    formGuarantees      String[] @default(["Completely free", "No hard sell", "We'll reply promptly"])
+    treatmentOptions    String[] @default([])
+    lockedTreatment     String?
+    hideTreatmentSelect Boolean  @default(false)
+    clinicLocations     String[] @default(["Oxford", "Didcot"])
+
+    // Voice AI / Nurture greeting
+    aiGreeting String @default("Hi, this is Bright Smile Dental calling about your dental implant enquiry. Is now a good time for a quick chat?") @db.Text
+
+    // -------------------------------------------------------------------------
+    // 2. VIDEO SECTION (OPTIONAL)
+    // -------------------------------------------------------------------------
+    showVideoSection Boolean @default(false)
+    videoLabel       String? @default("See It For Yourself")
+    videoTitle       String? @default("Watch how it works.")
+    videoSubtitle    String? @default("A quick look inside the clinic, the process, and the results our patients love — straight from the team who deliver them.") @db.Text
+    videoUrl         String?
+    videoPosterUrl   String?
+
+    // AI Avatar Video Generator fields (Optional)
+    consent           Boolean @default(false)
+    sourceVideoUrl    String?
+    sourceVideoName   String?
+    sourceVideoSize   Int?
+    videoScript       String? @db.Text
+    generatedVideoUrl String?
+    videoApproved     Boolean @default(false)
+
+    // -------------------------------------------------------------------------
+    // 3. DOCTOR SECTION (OPTIONAL)
+    // -------------------------------------------------------------------------
+    showDoctorSection   Boolean  @default(false)
+    doctorBadge         String?  @default("Your Surgeon")
+    doctorName          String?
+    doctorTitle         String?
+    doctorQualification String?
+    doctorImageUrl      String?
+    doctorBadgeTitle    String?  @default("PhD")
+    doctorBadgeSubtitle String?  @default("UCL Eastman\nDental Institute")
+    doctorDescription   String?  @db.Text
+    doctorCredentials   String[] @default([])
+
+    // -------------------------------------------------------------------------
+    // 4. PATIENT TESTIMONIALS SECTION (OPTIONAL)
+    // -------------------------------------------------------------------------
+    showTestimonialsSection Boolean               @default(false)
+    testimonialBadge        String?               @default("Patient Stories")
+    testimonialTitle        String?               @default("Real results from real Oxfordshire patients.")
+    testimonialRating       Float?                @default(5.0)
+    testimonialReviewCount  Int?                  @default(200)
+    testimonials            CampaignTestimonial[]
+
+    // -------------------------------------------------------------------------
+    // 5. HOW IT WORKS SECTION (OPTIONAL)
+    // -------------------------------------------------------------------------
+    showHowItWorksSection Boolean        @default(false)
+    howItWorksBadge       String?        @default("How It Works")
+    howItWorksTitle       String?        @default("Three steps to your new smile.")
+    howItWorksSubtitle    String?        @default("The whole process is straightforward, dentist-led, and at your own pace.") @db.Text
+    howItWorksSteps       CampaignStep[]
+
+    // -------------------------------------------------------------------------
+    // 6. TREATMENT FAQ SECTION (OPTIONAL)
+    // -------------------------------------------------------------------------
+    showFaqSection Boolean       @default(false)
+    faqBadge       String?       @default("FAQ")
+    faqTitle       String?       @default("Common questions.")
+    faqSubtitle    String?       @default("Still unsure? Call us — we're happy to chat.")
+    faqPhone       String?
+    faqs           CampaignFaq[]
+
+    // -------------------------------------------------------------------------
+    // 7. SECONDARY CTA SECTION (OPTIONAL)
+    // -------------------------------------------------------------------------
+    showSecondaryCtaSection Boolean  @default(false)
+    secondaryCtaBadge       String?  @default("Book Now")
+    secondaryCtaTitle       String?  @default("Ready to see what's possible?")
+    secondaryCtaSubtitle    String?  @default("Book your free consultation — we'll assess your smile, answer every question, and show you exactly what treatment would look like for you. Zero cost, zero obligation.") @db.Text
+    secondaryCtaButtonText  String?  @default("Claim my free consultation")
+    secondaryCtaPhone       String?
+    secondaryCtaWhatsapp    String?
+    secondaryCtaConcerns    String[] @default(["Crowding", "Gaps / Spacing", "Bite Issues", "Something else"])
+
+    // -------------------------------------------------------------------------
+    // 8. FOOTER SECTION (OPTIONAL)
+    // -------------------------------------------------------------------------
+    showFooterSection Boolean @default(true)
+    footerClinicName  String?
+    footerText        String?
+
+    // -------------------------------------------------------------------------
+    // Relations & Metadata
+    // -------------------------------------------------------------------------
+    clinicId  String
+    clinic    Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+    sequences NurtureSequence[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("campaigns")
+}
+
+// -----------------------------------------------------------------------------
+// Relational Models for Dynamic Sections
+// -----------------------------------------------------------------------------
+
+model CampaignTestimonial {
+    id         String   @id @default(cuid())
+    campaignId String
+    campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+    name      String
+    detail    String?
+    quote     String  @db.Text
+    rating    Float   @default(5.0)
+    highlight Boolean @default(false)
+    order     Int     @default(0)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("campaign_testimonials")
+}
+
+model CampaignStep {
+    id         String   @id @default(cuid())
+    campaignId String
+    campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+    stepNumber  Int
+    title       String
+    description String @db.Text
+    order       Int    @default(0)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("campaign_steps")
+}
+
+model CampaignFaq {
+    id         String   @id @default(cuid())
+    campaignId String
+    campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+    question String
+    answer   String @db.Text
+    order    Int    @default(0)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("campaign_faqs")
+}
