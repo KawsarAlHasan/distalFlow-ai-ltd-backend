@@ -68,10 +68,9 @@ model PlanPrice {
   id String @id @default(cuid())
 
   // Stripe Price ID.
-  // Can be replaced with a nullable field if Stripe is not integrated yet.
   stripePriceId String @unique
 
-  plan   Plan   @relation(fields: [planId], references: [id])
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
   planId String
 
   // All amounts are stored in minor currency units.
@@ -86,9 +85,6 @@ model PlanPrice {
   // Relations
   subscriptions ClinicSubscription[]
 
-  // migrationsFrom Migration[] @relation("MigrationFromPrice")
-  // migrationsTo   Migration[] @relation("MigrationToPrice")
-
   @@index([planId])
   @@index([planId, status])
   @@map("prices")
@@ -97,10 +93,10 @@ model PlanPrice {
 model ClinicOverride {
   id String @id @default(cuid())
 
-  clinic   Clinic @relation(fields: [clinicId], references: [id])
+  clinic   Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   clinicId String
 
-  plan   Plan   @relation(fields: [planId], references: [id])
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
   planId String
 
   // Standard price at the time the override was created.
@@ -116,7 +112,6 @@ model ClinicOverride {
   updatedAt DateTime @updatedAt
 
   // Admin user who created/updated the override.
-  // Keep as String until a User model is introduced.
   createdById String?
 
   @@index([clinicId])
@@ -124,59 +119,22 @@ model ClinicOverride {
   @@map("clinic_overrides")
 }
 
-// model Migration {
-//   id String @id @default(cuid())
-
-//   mode MigrationMode
-
-//   // Previous price
-//   fromPrice   Price  @relation("MigrationFromPrice", fields: [fromPriceId], references: [id])
-//   fromPriceId String
-
-//   // New price.
-//   // NULL when the migration mode is GRANDFATHER.
-//   toPrice   Price?  @relation("MigrationToPrice", fields: [toPriceId], references: [id])
-//   toPriceId String?
-
-//   // Number of subscribers affected by this migration.
-//   subscribersAffected Int
-
-//   performedAt DateTime @default(now())
-
-//   // Admin user who performed the migration.
-//   performedById String?
-
-//   @@index([fromPriceId])
-//   @@index([toPriceId])
-//   @@index([performedAt])
-
-//   @@map("migrations")
-// }
-
 model PlanAuditLog {
   id String @id @default(cuid())
 
   // Admin display name/email.
-  // Replace with User relation later if required.
   admin String
 
   action AuditAction
 
-  plan   Plan   @relation(fields: [planId], references: [id])
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
   planId String
 
   // Human-readable snapshots.
-  // Example:
-  // previous = "£897/mo"
-  // next     = "£997/mo"
   previous String
   next     String
 
   // What was affected.
-  // Examples:
-  // "New sign-ups only"
-  // "12 subscribers"
-  // "ABC Clinic"
   affected String
 
   // Optional structured information.

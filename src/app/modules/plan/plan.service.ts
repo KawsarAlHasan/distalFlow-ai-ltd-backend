@@ -145,7 +145,7 @@ export const initializePlanService = async () => {
 
       await tx.planPrice.create({
         data: {
-          stripePriceId: `price_${seed.type.toLowerCase()}_v1`, // dummy; replace when Stripe is integrated
+          stripePriceId: `price_${seed.type.toLowerCase()}_v1`,
           planId: plan.id,
           amount: seed.initialPrice.amount,
           setupFee: seed.initialPrice.setupFee,
@@ -177,12 +177,12 @@ export const getPlansService = async () => {
     orderBy: { createdAt: "asc" },
   });
 
-  // Build response to match frontend structure
+  // Build response to match frontend structure (amounts in pounds)
   const result = plans.map((plan) => {
     const history = plan.prices.map((price) => ({
       id: price.id,
-      amount: price.amount,
-      setup: price.setupFee,
+      amount: price.amount / 100,
+      setup: price.setupFee / 100,
       createdAt: formatDate(price.createdAt),
       status: price.status.toLowerCase(), // 'active', 'legacy', 'grandfathered'
       subscribers: price.subscriptions.length,
@@ -228,6 +228,10 @@ export const createPriceService = async (
     throw new ApiError(StatusCodes.NOT_FOUND, "Plan not found");
   }
 
+  // Convert pounds to pence if necessary
+  const minorAmount = amount < 10000 ? Math.round(amount * 100) : amount;
+  const minorSetupFee = setupFee < 10000 ? Math.round(setupFee * 100) : setupFee;
+
   // Find current active price
   const activePrice = plan.prices.find((p) => p.status === PriceStatus.ACTIVE);
 
@@ -247,10 +251,10 @@ export const createPriceService = async (
     // 2. Create new active price
     const created = await tx.planPrice.create({
       data: {
-        stripePriceId: `price_${planKey}_${Date.now()}`, // temporary; replace with Stripe Price ID later
+        stripePriceId: `price_${planKey.toLowerCase()}_${Date.now()}`,
         planId: plan.id,
-        amount,
-        setupFee,
+        amount: minorAmount,
+        setupFee: minorSetupFee,
         status: PriceStatus.ACTIVE,
       },
     });
@@ -262,7 +266,7 @@ export const createPriceService = async (
         action: AuditAction.PRICE_CREATED,
         planId: plan.id,
         previous: activePrice ? `${gbp(activePrice.amount)}/mo` : "—",
-        next: `${gbp(amount)}/mo`,
+        next: `${gbp(minorAmount)}/mo`,
         affected: "New sign-ups only",
       },
     });
@@ -270,7 +274,11 @@ export const createPriceService = async (
     return created;
   });
 
-  return newPrice;
+  return {
+    ...newPrice,
+    amount: newPrice.amount / 100,
+    setup: newPrice.setupFee / 100,
+  };
 };
 
 // ------------------------- Migrate Subscribers ------------------------
@@ -318,12 +326,16 @@ export const migrateSubscribersService = async (
     if (mode === "migrate") {
       // Update all subscriptions from legacy price to active price
       const updateResult = await tx.clinicSubscription.updateMany({
-        where: { priceId: legacyPrice.id },
-        data: { priceId: activePrice!.id },
+        where: { planPriceId: legacyPrice.id },
+        data: {
+          planPriceId: activePrice!.id,
+          monthlyFee: activePrice!.amount / 100,
+          setupFee: activePrice!.setupFee / 100,
+        },
       });
       affectedCount = updateResult.count;
 
-      // Set legacy price status to LEGACY (already, but keep)
+      // Set legacy price status to LEGACY
       await tx.planPrice.update({
         where: { id: legacyPrice.id },
         data: { status: PriceStatus.LEGACY },
@@ -376,10 +388,12 @@ export const getOverridesService = async () => {
 
   return overrides.map((ov) => ({
     id: ov.id,
-    clinic: ov.clinic.name,
+    clinic: ov.clinic.name || "Unnamed Clinic",
+    clinicId: ov.clinicId,
     tier: planTypeToKey(ov.plan.type),
-    standardPrice: ov.standardPrice,
-    overridePrice: ov.overridePrice,
+    tierName: ov.plan.name,
+    standardPrice: ov.standardPrice / 100,
+    overridePrice: ov.overridePrice / 100,
     reason: ov.reason,
   }));
 };
@@ -422,6 +436,8 @@ export const createOverrideService = async (
     );
   }
 
+  const minorOverridePrice = overridePrice < 10000 ? Math.round(overridePrice * 100) : overridePrice;
+
   // Create override
   const override = await dbClient.$transaction(async (tx) => {
     const ov = await tx.clinicOverride.create({
@@ -429,9 +445,9 @@ export const createOverrideService = async (
         clinicId: clinic!.id,
         planId: plan.id,
         standardPrice: activePrice.amount,
-        overridePrice,
+        overridePrice: minorOverridePrice,
         reason,
-        createdById: admin, // assuming admin is a string; if you have userId, pass that
+        createdById: admin,
       },
     });
 
@@ -442,15 +458,48 @@ export const createOverrideService = async (
         action: AuditAction.OVERRIDE_APPLIED,
         planId: plan.id,
         previous: `${gbp(activePrice.amount)}/mo`,
-        next: `${gbp(overridePrice)}/mo`,
-        affected: clinic!.name,
+        next: `${gbp(minorOverridePrice)}/mo`,
+        affected: clinic!.name || "Clinic",
       },
     });
 
     return ov;
   });
 
-  return override;
+  return {
+    ...override,
+    standardPrice: override.standardPrice / 100,
+    overridePrice: override.overridePrice / 100,
+  };
+};
+
+export const deleteOverrideService = async (overrideId: string, admin: string) => {
+  const override = await dbClient.clinicOverride.findUnique({
+    where: { id: overrideId },
+    include: { clinic: true, plan: true },
+  });
+  if (!override) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Override not found");
+  }
+
+  await dbClient.$transaction(async (tx) => {
+    await tx.clinicOverride.delete({
+      where: { id: overrideId },
+    });
+
+    await tx.planAuditLog.create({
+      data: {
+        admin,
+        action: AuditAction.OVERRIDE_REMOVED,
+        planId: override.planId,
+        previous: `${gbp(override.overridePrice)}/mo`,
+        next: `${gbp(override.standardPrice)}/mo`,
+        affected: override.clinic.name || "Clinic",
+      },
+    });
+  });
+
+  return { message: "Override removed successfully" };
 };
 
 // ------------------------- Audit Log --------------------------------
@@ -462,10 +511,19 @@ export const getAuditLogService = async () => {
     orderBy: { createdAt: "desc" },
   });
 
+  const actionLabels: Record<AuditAction, string> = {
+    PRICE_CREATED: "New price created",
+    PRICE_UPDATED: "Price updated",
+    SUBSCRIBERS_MIGRATED: "Subscribers migrated",
+    PRICE_GRANDFATHERED: "Price grandfathered",
+    OVERRIDE_APPLIED: "Per-clinic override applied",
+    OVERRIDE_REMOVED: "Per-clinic override removed",
+  };
+
   return entries.map((entry) => ({
     id: entry.id,
     admin: entry.admin,
-    action: entry.action.replace(/_/g, " ").toLowerCase(), // e.g., "PRICE_CREATED" → "price created"
+    action: actionLabels[entry.action] || entry.action,
     tier: entry.plan.name,
     previous: entry.previous,
     next: entry.next,

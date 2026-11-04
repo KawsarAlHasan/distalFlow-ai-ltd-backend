@@ -9,6 +9,7 @@ import { SettingsRoutes } from "../app/modules/settings/settings.route";
 import { AdsRoutes } from "../app/modules/ads/ads.route";
 import { NurtureRoutes } from "../app/modules/nurture/nurture.route";
 import { CampaignRoutes } from "../app/modules/campaign/campaign.route";
+import { BillingRoutes } from "../app/modules/billing/billing.route";
 
 const router = express.Router();
 
@@ -48,6 +49,10 @@ const apiRoutes = [
   {
     path: "/settings",
     route: SettingsRoutes,
+  },
+  {
+    path: "/billing",
+    route: BillingRoutes,
   },
   {
     path: "/campaign",

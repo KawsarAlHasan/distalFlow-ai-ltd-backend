@@ -189,7 +189,7 @@ export const rigAdminAuth = (checkMainClient = false) => {
       const decoded = verifyAuthToken(token, "rig_admin");
 
       // get client from db
-      const client = await dbClient.client.findUnique({
+      const client = await (dbClient as any).client?.findUnique({
         where: {
           id: decoded.id,
         },

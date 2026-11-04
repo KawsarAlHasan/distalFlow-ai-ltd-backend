@@ -20,6 +20,12 @@ model Clinic {
     tradingCompany String?
     city           String?
 
+    // Billing details
+    billingName        String?
+    billingEmail       String?
+    vatNumber          String?
+    stripeCustomerId   String?
+
     // google ads credentials 
     googleId           String?
     googleEmail        String?
@@ -30,11 +36,13 @@ model Clinic {
     createdAt DateTime     @default(now())
     updatedAt DateTime     @updatedAt
 
-    admin        ClinicAdmin?
-    postcodes    ClinicPostcode[]
-    location     ClinicLocation?
-    subscription ClinicSubscription?
-    overrides    ClinicOverride[]
+    admin         ClinicAdmin?
+    postcodes     ClinicPostcode[]
+    location      ClinicLocation?
+    subscription  ClinicSubscription?
+    overrides     ClinicOverride[]
+    invoices      Invoice[]
+    salesRequests PlanSalesRequest[]
 
     // New relations for nurture
     nurtureSequences NurtureSequence[]
@@ -90,28 +98,53 @@ model ClinicSubscription {
     promoCode   String?
     monthlyFee  Float?
     setupFee    Float?
-    status      String     @default("pending") // pending, active, cancelled, expired
+    status      String     @default("pending") // pending, active, cancelled, expired, grace, failed
     clinicId    String     @unique
     clinic      Clinic     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
     createdAt   DateTime   @default(now())
     updatedAt   DateTime   @updatedAt
     planPrice   PlanPrice? @relation(fields: [planPriceId], references: [id])
     planPriceId String?
+
+    stripeSubscriptionId  String?
+    currentPeriodEnd      DateTime?
+    cancelAtPeriodEnd     Boolean   @default(false)
+    paymentMethodBrand    String?   @default("VISA")
+    paymentMethodLast4    String?   @default("4242")
+    paymentMethodExpMonth String?   @default("08")
+    paymentMethodExpYear  String?   @default("27")
 }
 
-// model ClinicSubscription {
-//   id String @id @default(cuid())
+model Invoice {
+    id            String   @id @default(cuid())
+    invoiceNumber String   @unique
+    clinicId      String
+    clinic        Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+    amount        Float
+    currency      String   @default("GBP")
+    status        String   @default("Paid") // Paid, Pending, Failed
+    pdfUrl        String?
+    paymentDate   DateTime @default(now())
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
 
-//   clinic   Clinic @relation(fields: [clinicId], references: [id])
-//   clinicId String
+    @@index([clinicId])
+    @@map("invoices")
+}
 
-//   price   PlanPrice @relation(fields: [priceId], references: [id])
-//   priceId String
+model PlanSalesRequest {
+    id           String   @id @default(cuid())
+    clinicId     String
+    clinic       Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+    plan         PlanType @default(ENTERPRISE)
+    locations    Int      @default(2)
+    contactName  String?
+    contactEmail String?
+    notes        String?
+    status       String   @default("pending") // pending, contacted, closed
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
 
-//   startedAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-
-//   @@index([clinicId])
-//   @@index([priceId])
-//   @@map("clinic_subscriptions")
-// }
+    @@index([clinicId])
+    @@map("plan_sales_requests")
+}

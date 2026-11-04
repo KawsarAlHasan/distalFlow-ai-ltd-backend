@@ -908,6 +908,7 @@ export const emailTemplate = {
   deleteAccount,
   createCompany,
   immediateActionEmail,
+  resetPassword: resetPasswordEmail,
 };
 
 
