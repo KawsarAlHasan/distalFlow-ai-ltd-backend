@@ -62,3 +62,21 @@ export const deleteOTPZodSchema = z.object({
         otp: z.number().min(1, "OTP is required"),
     }),
 });
+
+export const updateClinicAdminProfileZodSchema = z.object({
+    body: z.object({
+        name: z.string().optional(),
+        phone: z.string().optional(),
+        clinicName: z.string().optional(),
+    }),
+});
+
+export const changeClinicAdminPasswordZodSchema = z.object({
+    body: z.object({
+        oldPassword: z.string().optional(),
+        old_password: z.string().optional(),
+        current_password: z.string().optional(),
+        newPassword: z.string().optional(),
+        new_password: z.string().optional(),
+    }),
+});

@@ -197,3 +197,119 @@ export const setPasswordClinicAdminService = async (payload: any) => {
 
     return { createToken };
 };
+
+
+// update clinic admin profile
+export const updateClinicAdminProfileService = async (payload: any) => {
+    const { id, name, phone, profilePic, clinicName } = payload;
+
+    const isExistClinicAdmin = await dbClient.clinicAdmin.findUnique({
+        where: { id: id },
+        include: { clinic: true },
+    });
+
+    if (!isExistClinicAdmin) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Clinic admin doesn't exist!");
+    }
+
+    // delete old image if new image uploaded
+    if (isExistClinicAdmin.profilePic && profilePic) {
+        unlinkFile(isExistClinicAdmin.profilePic);
+    }
+
+    const updated = await dbClient.$transaction(async (tx) => {
+        // update clinic name if provided
+        if (clinicName && isExistClinicAdmin.clinicId) {
+            await tx.clinic.update({
+                where: { id: isExistClinicAdmin.clinicId },
+                data: { name: clinicName },
+            });
+        }
+
+        const adminUpdated = await tx.clinicAdmin.update({
+            where: { id: id },
+            data: {
+                name: name || isExistClinicAdmin.name,
+                phone: phone !== undefined ? phone : isExistClinicAdmin.phone,
+                profilePic: profilePic || isExistClinicAdmin.profilePic,
+            },
+            include: {
+                clinic: {
+                    select: {
+                        id: true,
+                        name: true,
+                        city: true,
+                        tradingCompany: true,
+                    },
+                },
+            },
+            omit: {
+                password: true,
+            },
+        });
+
+        return adminUpdated;
+    });
+
+    return updated;
+};
+
+// update clinic admin password
+export const updateClinicAdminPasswordService = async (payload: any) => {
+    const { id } = payload;
+    const oldPassword = payload.oldPassword || payload.old_password || payload.current_password;
+    const newPassword = payload.newPassword || payload.new_password;
+
+    if (!oldPassword || !newPassword) {
+        throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            "Both current password and new password are required!",
+        );
+    }
+
+    if (newPassword.length < 6) {
+        throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            "New password must be at least 6 characters long!",
+        );
+    }
+
+    const isExistClinicAdmin = await dbClient.clinicAdmin.findUnique({
+        where: { id: id },
+    });
+
+    if (!isExistClinicAdmin) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Clinic admin doesn't exist!");
+    }
+
+    // verify old password
+    const isPasswordMatched = await bcrypt.compare(
+        oldPassword,
+        isExistClinicAdmin.password,
+    );
+
+    if (!isPasswordMatched) {
+        throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            "Current password is incorrect!",
+        );
+    }
+
+    // hash new password
+    const hashPassword = await bcrypt.hash(
+        newPassword,
+        Number(config.bcrypt_salt_rounds),
+    );
+
+    await dbClient.clinicAdmin.update({
+        where: { id: id },
+        data: {
+            password: hashPassword,
+        },
+    });
+
+    return {
+        success: true,
+        message: "Password updated successfully",
+    };
+};
