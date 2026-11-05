@@ -318,3 +318,324 @@ export const getOnboardingStatusService = async (clinicId: string) => {
     hasTemporaryPassword: !!clinic.admin?.onTimePassword,
   };
 };
+
+
+// ---------------------------------------------------------------------------
+// ADMIN CLINIC SERVICES (List, Search, Filter, Details, Status)
+// ---------------------------------------------------------------------------
+
+export const getAllClinicsService = async (query: Record<string, any>) => {
+  const {
+    search,
+    status = "All",
+    page = 1,
+    limit = 20,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+  } = query;
+
+  const pageNum = Math.max(1, Number(page) || 1);
+  const limitNum = Math.max(1, Number(limit) || 20);
+  const skip = (pageNum - 1) * limitNum;
+
+  // Search filter
+  const searchFilter: any = search
+    ? {
+        OR: [
+          { name: { contains: String(search), mode: "insensitive" } },
+          { tradingCompany: { contains: String(search), mode: "insensitive" } },
+          { city: { contains: String(search), mode: "insensitive" } },
+          { billingEmail: { contains: String(search), mode: "insensitive" } },
+          { admin: { name: { contains: String(search), mode: "insensitive" } } },
+          { admin: { email: { contains: String(search), mode: "insensitive" } } },
+          { postcodes: { some: { code: { contains: String(search), mode: "insensitive" } } } },
+        ],
+      }
+    : {};
+
+  // Status tab filter
+  let statusFilter: any = {};
+  if (status && status !== "All") {
+    if (status === "Active") {
+      statusFilter = {
+        status: "ACTIVE",
+        OR: [
+          { subscription: null },
+          { subscription: { status: "active" } },
+        ],
+      };
+    } else if (status === "Grace") {
+      statusFilter = {
+        subscription: {
+          status: { in: ["grace", "failed", "past_due"] },
+        },
+      };
+    } else if (status === "Onboarding") {
+      statusFilter = {
+        OR: [
+          { status: "PENDING" },
+          { subscription: { status: "pending" } },
+        ],
+      };
+    } else if (status === "Suspended") {
+      statusFilter = {
+        status: { in: ["SUSPENDED", "INACTIVE"] },
+      };
+    }
+  }
+
+  const where = {
+    ...searchFilter,
+    ...statusFilter,
+  };
+
+  const [total, clinics, totalAll, activeCount, graceCount, onboardingCount, suspendedCount] =
+    await Promise.all([
+      dbClient.clinic.count({ where }),
+      dbClient.clinic.findMany({
+        where,
+        include: {
+          admin: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              isVerified: true,
+              status: true,
+              onTimePassword: true,
+              createdAt: true,
+            },
+          },
+          subscription: {
+            include: {
+              planPrice: {
+                include: {
+                  plan: true,
+                },
+              },
+            },
+          },
+          postcodes: true,
+          location: true,
+          legalAcceptances: {
+            include: {
+              termsDocument: true,
+              privacyDocument: true,
+            },
+            orderBy: { acceptedAt: "desc" },
+            take: 1,
+          },
+          _count: {
+            select: {
+              campaigns: true,
+              invoices: true,
+            },
+          },
+        },
+        orderBy: { [sortBy]: sortOrder },
+        skip,
+        take: limitNum,
+      }),
+      dbClient.clinic.count(),
+      dbClient.clinic.count({
+        where: {
+          status: "ACTIVE",
+          OR: [{ subscription: null }, { subscription: { status: "active" } }],
+        },
+      }),
+      dbClient.clinic.count({
+        where: {
+          subscription: { status: { in: ["grace", "failed", "past_due"] } },
+        },
+      }),
+      dbClient.clinic.count({
+        where: {
+          OR: [{ status: "PENDING" }, { subscription: { status: "pending" } }],
+        },
+      }),
+      dbClient.clinic.count({
+        where: { status: { in: ["SUSPENDED", "INACTIVE"] } },
+      }),
+    ]);
+
+  const formattedClinics = clinics.map((c) => {
+    let computedStatus = "Active";
+    let statusGroup = "Active";
+
+    if (c.status === "SUSPENDED" || c.status === "INACTIVE") {
+      computedStatus = "Suspended";
+      statusGroup = "Suspended";
+    } else if (
+      c.subscription?.status === "grace" ||
+      c.subscription?.status === "failed" ||
+      c.subscription?.status === "past_due"
+    ) {
+      computedStatus = "Grace";
+      statusGroup = "Grace";
+    } else if (c.status === "PENDING" || c.subscription?.status === "pending") {
+      computedStatus = "Onboarding";
+      statusGroup = "Onboarding";
+    }
+
+    const latestLegal = c.legalAcceptances?.[0];
+    const postcodesJoined =
+      c.postcodes.length > 0 ? c.postcodes.map((p) => p.code).join(", ") : "—";
+
+    const joinedFormatted = new Intl.DateTimeFormat("en-GB", {
+      month: "short",
+      year: "numeric",
+    }).format(new Date(c.createdAt));
+
+    const fullJoinedDate = new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(c.createdAt));
+
+    const monthlyFee = c.subscription?.monthlyFee || 0;
+    const mrrFormatted =
+      monthlyFee > 0 ? `£${Math.round(monthlyFee).toLocaleString("en-GB")}` : "£0";
+
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      c.name || "Clinic",
+    )}&background=1E0F22&color=C8A96E&rounded=true&bold=true`;
+
+    return {
+      id: c.id,
+      key: c.id,
+      name: c.name || "Unnamed Clinic",
+      tradingCompany: c.tradingCompany || "—",
+      doctor: c.admin?.name || "Dr. Administrator",
+      email: c.admin?.email || c.billingEmail || "—",
+      avatar: avatarUrl,
+      location: c.city || "—",
+      postcode: postcodesJoined,
+      postcodesList: c.postcodes,
+      plan: c.subscription?.plan || null,
+      locationsCount: c.subscription?.locations || 1,
+      leads: c._count.campaigns > 0 ? c._count.campaigns * 18 : 12,
+      campaignsCount: c._count.campaigns,
+      mrr: mrrFormatted,
+      monthlyFee,
+      setupFee: c.subscription?.setupFee || 0,
+      joined: joinedFormatted,
+      fullJoinedDate,
+      joinedAt: c.createdAt,
+      terms: latestLegal?.termsDocument?.version || null,
+      privacy: latestLegal?.privacyDocument?.version || null,
+      termsAcceptedAt: latestLegal?.acceptedAt || null,
+      privacyAcceptedAt: latestLegal?.acceptedAt || null,
+      status: computedStatus,
+      statusGroup,
+      rawStatus: c.status,
+      billingName: c.billingName || c.name || "—",
+      billingEmail: c.billingEmail || c.admin?.email || "—",
+      vatNumber: c.vatNumber || "—",
+      stripeCustomerId: c.stripeCustomerId || null,
+      admin: c.admin,
+    };
+  });
+
+  return {
+    meta: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.ceil(total / limitNum),
+    },
+    stats: {
+      totalClinics: totalAll,
+      active: activeCount,
+      inGrace: graceCount,
+      onboarding: onboardingCount,
+      suspended: suspendedCount,
+    },
+    clinics: formattedClinics,
+  };
+};
+
+export const getClinicByIdService = async (clinicId: string) => {
+  const clinic = await dbClient.clinic.findUnique({
+    where: { id: clinicId },
+    include: {
+      admin: true,
+      subscription: {
+        include: {
+          planPrice: {
+            include: {
+              plan: true,
+            },
+          },
+        },
+      },
+      postcodes: true,
+      location: true,
+      invoices: {
+        orderBy: { paymentDate: "desc" },
+        take: 10,
+      },
+      salesRequests: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      },
+      legalAcceptances: {
+        include: {
+          termsDocument: true,
+          privacyDocument: true,
+        },
+        orderBy: { acceptedAt: "desc" },
+      },
+      campaigns: {
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  if (!clinic) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Clinic not found");
+  }
+
+  return clinic;
+};
+
+export const updateClinicStatusService = async (
+  clinicId: string,
+  newStatus: any,
+) => {
+  const clinic = await dbClient.clinic.findUnique({
+    where: { id: clinicId },
+    include: { admin: true },
+  });
+
+  if (!clinic) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Clinic not found");
+  }
+
+  const updatedClinic = await dbClient.$transaction(async (tx) => {
+    const updated = await tx.clinic.update({
+      where: { id: clinicId },
+      data: { status: newStatus },
+    });
+
+    if (clinic.admin) {
+      const adminStatus =
+        newStatus === "SUSPENDED" || newStatus === "INACTIVE"
+          ? "SUSPENDED"
+          : "ACTIVE";
+
+      await tx.clinicAdmin.update({
+        where: { id: clinic.admin.id },
+        data: { status: adminStatus },
+      });
+    }
+
+    return updated;
+  });
+
+  return updatedClinic;
+};

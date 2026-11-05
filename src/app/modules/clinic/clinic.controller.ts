@@ -2,7 +2,12 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
-import { clinicCreateService } from "./clinic.service";
+import {
+  clinicCreateService,
+  getAllClinicsService,
+  getClinicByIdService,
+  updateClinicStatusService,
+} from "./clinic.service";
 
 // create new Clinic
 export const createNewClinic = catchAsync(
@@ -20,59 +25,48 @@ export const createNewClinic = catchAsync(
   },
 );
 
+// get all Clinics with search, status filters & pagination
+export const getAllClinics = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await getAllClinicsService(req.query);
 
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Clinics fetched successfully",
+      data: result,
+    });
+  },
+);
 
-// // get all Admin
-// export const getAllAdmin = catchAsync(async (req: Request, res: Response) => {
-//   const result = await getAllAdminService(req.query);
+// get single Clinic details by ID
+export const getClinicById = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = req.params.id as string;
+    const result = await getClinicByIdService(clinicId);
 
-//   sendResponse(res, {
-//     success: true,
-//     statusCode: StatusCodes.OK,
-//     message: "Admin fetched successfully",
-//     data: result,
-//   });
-// });
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Clinic details fetched successfully",
+      data: result,
+    });
+  },
+);
 
-// // Update an existing Admin
-// export const updateAdmin = catchAsync(async (req: Request, res: Response) => {
-//   const { ...adminData } = req.body;
+// update Clinic status (ACTIVE, SUSPENDED, PENDING, INACTIVE)
+export const updateClinicStatus = catchAsync(
+  async (req: Request, res: Response) => {
+    const clinicId = req.params.id as string;
+    const { status } = req.body;
 
-//   const result = await updateAdminService(adminData);
+    const result = await updateClinicStatusService(clinicId, status);
 
-//   sendResponse(res, {
-//     success: true,
-//     statusCode: StatusCodes.OK,
-//     message: "Admin updated successfully",
-//     data: result,
-//   });
-// });
-
-// // Update an existing Admin
-// export const adminStatusChange = catchAsync(
-//   async (req: Request, res: Response) => {
-//     const { ...adminData } = req.body;
-
-//     const result = await adminStatusChangeService(adminData);
-
-//     sendResponse(res, {
-//       success: true,
-//       statusCode: StatusCodes.OK,
-//       message: "Admin status updated successfully",
-//       data: result,
-//     });
-//   },
-// );
-
-// // Delete an existing Admin
-// export const deleteAdmin = catchAsync(async (req: Request, res: Response) => {
-//   const adminId = req.params.id;
-
-//   await deleteAdminService(adminId);
-
-//   sendResponse(res, {
-//     success: true,
-//     statusCode: StatusCodes.OK,
-//     message: "Admin deleted successfully",
-//   });
-// });
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: `Clinic status updated to ${status} successfully`,
+      data: result,
+    });
+  },
+);
