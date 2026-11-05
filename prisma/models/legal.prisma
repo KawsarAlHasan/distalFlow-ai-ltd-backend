@@ -1,0 +1,59 @@
+enum LegalDocumentType {
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+}
+
+enum LegalDocumentStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model LegalDocument {
+  id            String              @id @default(cuid())
+  type          LegalDocumentType
+  version       String              // e.g. "v1.0", "v1.1", "v2.0"
+  title         String              // e.g. "Platform Terms and Conditions"
+  changeSummary String?             // Summary of what changed in this version
+  content       Json                // Array of sections: [{ id, label, title, content, icon? }]
+  status        LegalDocumentStatus @default(DRAFT)
+  effectiveDate DateTime            @default(now())
+  publishedAt   DateTime?
+  createdById   String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  // Relations
+  termsAcceptances   ClinicLegalAcceptance[] @relation("TermsDocument")
+  privacyAcceptances ClinicLegalAcceptance[] @relation("PrivacyDocument")
+
+  @@unique([type, version])
+  @@index([type, status])
+  @@map("legal_documents")
+}
+
+model ClinicLegalAcceptance {
+  id                String        @id @default(cuid())
+  clinicId          String
+  clinic            Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  clinicAdminId     String?
+  clinicAdmin       ClinicAdmin?  @relation(fields: [clinicAdminId], references: [id], onDelete: SetNull)
+
+  // Accepted versions
+  termsDocumentId   String
+  termsDocument     LegalDocument @relation("TermsDocument", fields: [termsDocumentId], references: [id])
+
+  privacyDocumentId String
+  privacyDocument   LegalDocument @relation("PrivacyDocument", fields: [privacyDocumentId], references: [id])
+
+  // Audit info
+  acceptedAt        DateTime      @default(now())
+  ipAddress         String?
+  userAgent         String?
+
+  @@index([clinicId])
+  @@index([termsDocumentId])
+  @@index([privacyDocumentId])
+  @@map("clinic_legal_acceptances")
+}
+

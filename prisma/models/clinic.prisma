@@ -43,6 +43,7 @@ model Clinic {
     overrides     ClinicOverride[]
     invoices      Invoice[]
     salesRequests PlanSalesRequest[]
+    legalAcceptances ClinicLegalAcceptance[]
 
     // New relations for nurture
     nurtureSequences NurtureSequence[]
@@ -62,6 +63,8 @@ model ClinicAdmin {
     isVerified  Boolean @default(false)
 
     status ClinicAdminStatus @default(PENDING)
+
+    legalAcceptances ClinicLegalAcceptance[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
